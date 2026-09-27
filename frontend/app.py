@@ -370,7 +370,7 @@ else:
 # -----------------------------------------------------------------------------
 st.markdown("""
 <div class="clinical-header">
-    <h1>🫀 FedCare-HHS Clinical Decision Support System</h1>
+    <h1>🫀 Cardiovascular Disease Prediction System</h1>
     <p>Federated & Explainable Radial Basis Function Network (RBFN) with Harris Hawks Search (HHS) Feature Selection</p>
 </div>
 """, unsafe_allow_html=True)
