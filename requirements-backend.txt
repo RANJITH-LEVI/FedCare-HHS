@@ -1,0 +1,51 @@
+﻿# FedCare-HHS Backend: Production Requirements (Render-optimised)
+# Stripped of: numba, llvmlite, streamlit, alembic, flwr gRPC, uv
+# These caused Render build timeouts (>512 MB / >15 min)
+
+# --- Web Framework ---
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+starlette==0.41.3
+python-multipart==0.0.12
+python-dotenv==1.0.1
+
+# --- Data & ML ---
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
+scipy==1.14.1
+imbalanced-learn==0.12.4
+joblib==1.4.2
+
+# --- Explainability ---
+shap==0.46.0
+slicer==0.0.8
+
+# --- Federated Learning (simulation mode only, no gRPC server) ---
+flwr==1.9.0
+
+# --- Database ---
+SQLAlchemy==2.0.36
+greenlet==3.1.1
+
+# --- HTTP & Validation ---
+httpx==0.27.2
+pydantic==2.10.1
+pydantic-core==2.27.1
+annotated-types==0.7.0
+typing_extensions==4.12.2
+
+# --- Plotting ---
+matplotlib==3.9.3
+pillow==11.0.0
+
+# --- Utilities ---
+requests==2.32.3
+tqdm==4.67.1
+PyYAML==6.0.2
+six==1.16.0
+packaging==24.2
+certifi==2024.12.14
+charset-normalizer==3.4.0
+idna==3.10
+urllib3==2.2.3

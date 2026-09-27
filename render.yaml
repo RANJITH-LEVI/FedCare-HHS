@@ -1,0 +1,17 @@
+﻿services:
+  - type: web
+    name: fedcare-hhs-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements-backend.txt
+    startCommand: python -m uvicorn backend.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATABASE_URL
+        value: sqlite:////tmp/fedcare.db
+      - key: PYTHONDONTWRITEBYTECODE
+        value: 1
+      - key: PYTHONUNBUFFERED
+        value: 1
