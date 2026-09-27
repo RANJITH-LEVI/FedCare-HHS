@@ -1,0 +1,20 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+
+# Streamlit secrets (never commit real secrets)
+.streamlit/secrets.toml
+
+# Database
+*.db
+*.sqlite3
+
+# Local processed artifacts (rebuilt on deploy)
+data/processed/pipeline.pkl
+
+# OS
+.DS_Store
+Thumbs.db

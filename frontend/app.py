@@ -21,8 +21,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Backend URL configuration
-API_BASE_URL = os.getenv("FEDCARE_BACKEND_URL", os.getenv("API_BASE_URL", "http://localhost:8000")).rstrip("/")
+# Backend URL — reads from Streamlit secrets (cloud) → env var → localhost
+def _get_backend_url() -> str:
+    try:
+        return st.secrets["FEDCARE_BACKEND_URL"].rstrip("/")
+    except Exception:
+        pass
+    return os.getenv("FEDCARE_BACKEND_URL", os.getenv("API_BASE_URL", "http://localhost:8000")).rstrip("/")
+
+API_BASE_URL = _get_backend_url()
 
 # Custom CSS for clinical styling
 st.markdown("""
