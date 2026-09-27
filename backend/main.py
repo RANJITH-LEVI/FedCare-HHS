@@ -1,4 +1,4 @@
-"""
+﻿"""
 FedCare-HHS Backend Application
 FastAPI REST API providing:
 - POST /predict: RBFN inference + SHAP explainability
@@ -11,6 +11,8 @@ FastAPI REST API providing:
 
 import os
 import sys
+import threading
+import traceback
 from contextlib import asynccontextmanager
 from datetime import datetime
 
@@ -31,6 +33,16 @@ from federated.simulate import FederatedSimulationManager
 
 # Ensure DB tables exist on import
 Base.metadata.create_all(bind=engine)
+
+
+def _init_manager_background():
+    """Runs heavy ML init in a daemon thread so Render health-check passes immediately."""
+    try:
+        mgr = FederatedSimulationManager.get_instance()
+        acc = mgr.get_metrics_summary()['global_metrics']['accuracy']
+        print(f"[OK] FedCare-HHS model ready. Global Accuracy: {acc:.4f}")
+    except Exception:
+        print(f"[ERROR] FederatedSimulationManager init failed:\n{traceback.format_exc()}")
 
 
 @asynccontextmanager
@@ -56,12 +68,16 @@ async def lifespan(app: FastAPI):
                 )
                 db.add(hosp)
         db.commit()
+    except Exception as e:
+        print(f"[WARN] Hospital DB seed failed (non-fatal): {e}")
     finally:
         db.close()
 
-    # 3. Warm up simulation manager
-    mgr = FederatedSimulationManager.get_instance()
-    print(f"FedCare-HHS Backend initialized. Global Model Accuracy: {mgr.get_metrics_summary()['global_metrics']['accuracy']:.4f}")
+    # 3. Heavy ML warmup in background — health check passes immediately
+    t = threading.Thread(target=_init_manager_background, daemon=True, name="fedcare-init")
+    t.start()
+    print("[INFO] FedCare-HHS backend started. ML model initialising in background...")
+
     yield
 
 
@@ -107,7 +123,12 @@ def root():
 
 @app.get("/health", tags=["System Health"])
 def health_check():
-    return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
+    mgr_ready = FederatedSimulationManager._instance is not None
+    return {
+        "status": "healthy",
+        "model_ready": mgr_ready,
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 
 if __name__ == "__main__":
