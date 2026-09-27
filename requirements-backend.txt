@@ -1,4 +1,4 @@
-﻿# FedCare-HHS Backend: Production Requirements (Render-optimised)
+# FedCare-HHS Backend: Production Requirements (Render-optimised)
 # Stripped of: numba, llvmlite, streamlit, alembic, flwr gRPC, uv
 # These caused Render build timeouts (>512 MB / >15 min)
 

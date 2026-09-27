@@ -10,7 +10,8 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 DB_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
 os.makedirs(DB_DIR, exist_ok=True)
 
-DEFAULT_DB_URL = f"sqlite:///{os.path.join(DB_DIR, 'fedcare.db')}"
+sqlite_path = os.path.join(DB_DIR, 'fedcare.db').replace('\\', '/')
+DEFAULT_DB_URL = f"sqlite:///{sqlite_path}"
 DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB_URL)
 
 # SQLite concurrency arguments

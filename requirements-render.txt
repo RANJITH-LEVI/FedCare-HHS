@@ -1,4 +1,4 @@
-﻿# FedCare-HHS — Python 3.11 compatible production requirements
+# FedCare-HHS — Python 3.11 compatible production requirements
 # Fixed: removed numba/llvmlite, pinned contourpy to 3.11-compatible version
 
 # --- Web Framework ---

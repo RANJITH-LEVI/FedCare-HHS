@@ -1,4 +1,4 @@
-﻿# FedCare-HHS Frontend Requirements (Streamlit Community Cloud)
+# FedCare-HHS Frontend Requirements (Streamlit Community Cloud)
 streamlit==1.39.0
 requests==2.32.3
 numpy==1.26.4

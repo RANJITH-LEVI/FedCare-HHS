@@ -1,4 +1,4 @@
-﻿# FedCare-HHS — requirements.txt
+# FedCare-HHS — requirements.txt
 # Read by Streamlit Community Cloud for the FRONTEND
 # Render backend uses requirements-render.txt (set in render.yaml buildCommand)
 

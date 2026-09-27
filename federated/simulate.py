@@ -22,6 +22,9 @@ from model.rbfn import RBFNClassifier
 from model.explain import ModelExplainer
 from federated.client import HospitalNumPyClient
 from federated.server import DifferentialPrivacyTracker
+import threading
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
 class FederatedSimulationManager:
@@ -30,15 +33,18 @@ class FederatedSimulationManager:
     Allows on-demand triggering of training rounds, tracking metrics, and real-time explainability.
     """
     _instance = None
+    _lock = threading.Lock()
 
     @classmethod
     def get_instance(cls) -> 'FederatedSimulationManager':
         if cls._instance is None:
-            cls._instance = cls()
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = cls()
         return cls._instance
 
     def __init__(self):
-        self.data_dir = "data/processed"
+        self.data_dir = os.path.join(PROJECT_ROOT, "data", "processed")
         os.makedirs(self.data_dir, exist_ok=True)
         
         self.selected_features_path = os.path.join(self.data_dir, "selected_features.json")

@@ -29,7 +29,9 @@ def _get_backend_url() -> str:
         pass
     return os.getenv("FEDCARE_BACKEND_URL", os.getenv("API_BASE_URL", "http://localhost:8000")).rstrip("/")
 
-API_BASE_URL = _get_backend_url()
+DEFAULT_API_BASE_URL = _get_backend_url()
+if "backend_url" not in st.session_state:
+    st.session_state["backend_url"] = DEFAULT_API_BASE_URL
 
 # Custom CSS for clinical styling
 st.markdown("""
@@ -157,14 +159,24 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# Helper: Compatibility wrapper for st.dataframe across Streamlit versions
+def render_dataframe(df: pd.DataFrame, **kwargs):
+    """Renders DataFrame using width='stretch' if supported, fallback to use_container_width."""
+    try:
+        st.dataframe(df, width="stretch", **kwargs)
+    except TypeError:
+        st.dataframe(df, use_container_width=True, **kwargs)
+
+
 # Helper: API Client
 def fetch_api(endpoint: str, method: str = "GET", payload: dict = None):
-    url = f"{API_BASE_URL}/{endpoint.lstrip('/')}"
+    base_url = st.session_state.get("backend_url", DEFAULT_API_BASE_URL).rstrip("/")
+    url = f"{base_url}/{endpoint.lstrip('/')}"
     try:
         if method == "GET":
             resp = requests.get(url, timeout=15)
         elif method == "POST":
-            resp = requests.post(url, json=payload, timeout=25)
+            resp = requests.post(url, json=payload, timeout=30)
         else:
             return None, "Unsupported HTTP method"
         
@@ -183,36 +195,42 @@ def render_shap_waterfall_plot(waterfall_steps: list, risk_score: float, base_va
     ax.set_facecolor('#0f172a')
 
     # Exclude base and final from delta sorting
-    deltas = [step for step in waterfall_steps if step['type'] in ('risk', 'protective')]
+    deltas = [step for step in waterfall_steps if step.get('type') in ('risk', 'protective')]
     
-    labels = ['Base Risk'] + [s['label'] for s in deltas] + ['Predicted Risk']
-    cum_values = [base_val] + [s['cumulative'] for s in deltas] + [risk_score]
-    delta_vals = [base_val] + [s['delta'] for s in deltas] + [0.0]
-
+    labels = ['Base Risk'] + [s.get('label', '') for s in deltas] + ['Predicted Risk']
     y_pos = np.arange(len(labels))[::-1]  # Top to bottom
 
     # Plot base bar
-    ax.barh(y_pos[0], base_val, left=0, color='#64748b', alpha=0.8, height=0.55, label='Base Prevalence')
+    ax.barh(y_pos[0], max(base_val, 0.001), left=0, color='#64748b', alpha=0.8, height=0.55, label='Base Prevalence')
+    ax.text(base_val / 2, y_pos[0], f"{base_val*100:.1f}%",
+            va='center', ha='center', color='#ffffff', fontsize=8.5, fontweight='bold')
 
     # Plot delta bars
     running_start = base_val
     for i, s in enumerate(deltas):
         idx = i + 1
-        delta = s['delta']
+        delta = s.get('delta', 0.0)
         color = '#ef4444' if delta > 0 else '#10b981'
         start_left = running_start if delta > 0 else running_start + delta
-        ax.barh(y_pos[idx], abs(delta), left=start_left, color=color, height=0.55)
+        ax.barh(y_pos[idx], max(abs(delta), 0.001), left=max(start_left, 0.0), color=color, height=0.55)
         
         # Text annotation on bar
         sign = "+" if delta > 0 else ""
-        ax.text(start_left + abs(delta)/2, y_pos[idx], f"{sign}{delta:.3f}",
-                va='center', ha='center', color='#ffffff', fontsize=8.5, fontweight='bold')
+        if abs(delta) >= 0.02:
+            ax.text(start_left + abs(delta)/2, y_pos[idx], f"{sign}{delta:.3f}",
+                    va='center', ha='center', color='#ffffff', fontsize=8.5, fontweight='bold')
+        else:
+            offset = 0.015 if delta >= 0 else -0.015
+            ha_align = 'left' if delta >= 0 else 'right'
+            ax.text(start_left + delta + offset, y_pos[idx], f"{sign}{delta:.3f}",
+                    va='center', ha=ha_align, color='#cbd5e1', fontsize=8.0)
         running_start += delta
 
     # Plot final bar
     final_color = '#f43f5e' if risk_score >= 0.50 else '#10b981'
-    ax.barh(y_pos[-1], risk_score, left=0, color=final_color, height=0.55, alpha=0.9, label='Predicted Risk')
-    ax.text(risk_score / 2, y_pos[-1], f"{risk_score*100:.1f}%",
+    ax.barh(y_pos[-1], max(risk_score, 0.001), left=0, color=final_color, height=0.55, alpha=0.9, label='Predicted Risk')
+    final_text_pos = max(min(risk_score / 2, 0.85), 0.06)
+    ax.text(final_text_pos, y_pos[-1], f"{risk_score*100:.1f}%",
             va='center', ha='center', color='#ffffff', fontsize=9.5, fontweight='bold')
 
     # Connectors
@@ -243,21 +261,25 @@ with st.sidebar:
     st.caption("Federated HHS-RBFN Decision Support")
     
     # API Backend URL configuration
-    backend_url_input = st.text_input("Backend API Endpoint", value=API_BASE_URL)
-    if backend_url_input != API_BASE_URL:
-        API_BASE_URL = backend_url_input.rstrip("/")
+    backend_url_input = st.text_input("Backend API Endpoint", value=st.session_state["backend_url"])
+    if backend_url_input.rstrip("/") != st.session_state["backend_url"]:
+        st.session_state["backend_url"] = backend_url_input.rstrip("/")
+        st.rerun()
 
     # Health probe
     health_data, health_err = fetch_api("/health")
     if not health_err and health_data and health_data.get("status") == "healthy":
-        st.success("● Backend Connected", icon="✅")
+        if health_data.get("model_ready", True):
+            st.success("● Backend Connected & Ready", icon="✅")
+        else:
+            st.warning("● Backend Warming Up Model...", icon="⏳")
     else:
         st.error("● Backend Offline", icon="⚠️")
         st.caption(f"Error: {health_err}")
 
     st.markdown("---")
     st.markdown("#### **Clinical Demo Presets**")
-    st.caption("Load pre-configured clinical archetypes:")
+    st.caption("Select a pre-configured clinical archetype:")
     
     preset_choice = st.selectbox(
         "Select Patient Archetype",
@@ -266,8 +288,20 @@ with st.sidebar:
             "Archetype 1: Severe CAD (63M, Severe Angina, High ST)",
             "Archetype 2: Healthy Routine Check (45F, Normal)",
             "Archetype 3: Borderline Risk (58M, Hyperlipidemia)"
-        ]
+        ],
+        key="selected_preset_choice"
     )
+
+    # Detect preset switch to trigger form recreation and auto-prediction
+    if "active_preset" not in st.session_state:
+        st.session_state["active_preset"] = preset_choice
+        st.session_state["preset_version"] = 0
+
+    if preset_choice != st.session_state["active_preset"]:
+        st.session_state["active_preset"] = preset_choice
+        st.session_state["preset_version"] = st.session_state.get("preset_version", 0) + 1
+        if preset_choice != "Custom Input (Manual)":
+            st.session_state["auto_trigger_preset"] = True
 
     st.markdown("---")
     st.markdown("#### **Federated Learning Quick-Trigger**")
@@ -340,42 +374,43 @@ with tab1:
     st.caption("Enter patient clinical markers. The federated HHS-RBFN global model evaluates risk and generates game-theoretic SHAP attributions.")
 
     col_form, col_results = st.columns([5, 6], gap="large")
+    pv = st.session_state.get("preset_version", 0)
 
     with col_form:
         st.markdown("##### **1. Clinical Intake Form**")
-        with st.form("patient_intake_form"):
+        with st.form(f"patient_intake_form_{pv}"):
             st.markdown("**Demographics & Vitals**")
             c1, c2 = st.columns(2)
             with c1:
-                age_val = st.slider("Age (years)", min_value=25, max_value=85, value=int(default_vals['age']))
-                trestbps_val = st.number_input("Resting BP (mm Hg)", min_value=80, max_value=220, value=int(default_vals['trestbps']))
+                age_val = st.slider("Age (years)", min_value=25, max_value=85, value=int(default_vals['age']), key=f"age_{pv}")
+                trestbps_val = st.number_input("Resting BP (mm Hg)", min_value=80, max_value=220, value=int(default_vals['trestbps']), key=f"trestbps_{pv}")
             with c2:
-                sex_val = st.selectbox("Biological Sex", options=[1, 0], format_func=lambda x: "Male (1)" if x == 1 else "Female (0)", index=0 if default_vals['sex'] == 1 else 1)
-                chol_val = st.number_input("Serum Cholesterol (mg/dl)", min_value=100, max_value=550, value=int(default_vals['chol']))
+                sex_val = st.selectbox("Biological Sex", options=[1, 0], format_func=lambda x: "Male (1)" if x == 1 else "Female (0)", index=0 if default_vals['sex'] == 1 else 1, key=f"sex_{pv}")
+                chol_val = st.number_input("Serum Cholesterol (mg/dl)", min_value=100, max_value=550, value=int(default_vals['chol']), key=f"chol_{pv}")
 
             st.markdown("**Cardiac Symptoms & History**")
             c3, c4 = st.columns(2)
             with c3:
                 cp_options = {1: "Typical Angina (1)", 2: "Atypical Angina (2)", 3: "Non-Anginal Pain (3)", 4: "Asymptomatic (4)"}
-                cp_val = st.selectbox("Chest Pain Type", options=list(cp_options.keys()), format_func=lambda x: cp_options[x], index=list(cp_options.keys()).index(int(default_vals['cp'])))
-                fbs_val = st.selectbox("Fasting Blood Sugar > 120 mg/dl", options=[0, 1], format_func=lambda x: "False (<= 120)" if x == 0 else "True (> 120)", index=int(default_vals['fbs']))
+                cp_val = st.selectbox("Chest Pain Type", options=list(cp_options.keys()), format_func=lambda x: cp_options[x], index=list(cp_options.keys()).index(int(default_vals['cp'])), key=f"cp_{pv}")
+                fbs_val = st.selectbox("Fasting Blood Sugar > 120 mg/dl", options=[0, 1], format_func=lambda x: "False (<= 120)" if x == 0 else "True (> 120)", index=int(default_vals['fbs']), key=f"fbs_{pv}")
             with c4:
                 restecg_options = {0: "Normal (0)", 1: "ST-T Abnormality (1)", 2: "LV Hypertrophy (2)"}
-                restecg_val = st.selectbox("Resting ECG", options=list(restecg_options.keys()), format_func=lambda x: restecg_options[x], index=int(default_vals['restecg']))
-                exang_val = st.selectbox("Exercise-Induced Angina", options=[0, 1], format_func=lambda x: "No (0)" if x == 0 else "Yes (1)", index=int(default_vals['exang']))
+                restecg_val = st.selectbox("Resting ECG", options=list(restecg_options.keys()), format_func=lambda x: restecg_options[x], index=list(restecg_options.keys()).index(int(default_vals['restecg'])), key=f"restecg_{pv}")
+                exang_val = st.selectbox("Exercise-Induced Angina", options=[0, 1], format_func=lambda x: "No (0)" if x == 0 else "Yes (1)", index=int(default_vals['exang']), key=f"exang_{pv}")
 
             st.markdown("**Exercise Stress Test & Advanced Diagnostics**")
             c5, c6 = st.columns(2)
             with c5:
-                thalach_val = st.slider("Max Heart Rate (thalach, bpm)", min_value=70, max_value=210, value=int(default_vals['thalach']))
-                oldpeak_val = st.slider("ST Depression (oldpeak, mm)", min_value=0.0, max_value=6.0, value=float(default_vals['oldpeak']), step=0.1)
+                thalach_val = st.slider("Max Heart Rate (thalach, bpm)", min_value=70, max_value=210, value=int(default_vals['thalach']), key=f"thalach_{pv}")
+                oldpeak_val = st.slider("ST Depression (oldpeak, mm)", min_value=0.0, max_value=6.0, value=float(default_vals['oldpeak']), step=0.1, key=f"oldpeak_{pv}")
             with c6:
                 slope_options = {1: "Upsloping (1)", 2: "Flat (2)", 3: "Downsloping (3)"}
-                slope_val = st.selectbox("Slope of Peak Exercise ST", options=list(slope_options.keys()), format_func=lambda x: slope_options[x], index=list(slope_options.keys()).index(int(default_vals['slope'])))
-                ca_val = st.selectbox("Major Vessels Colored (ca)", options=[0.0, 1.0, 2.0, 3.0], index=int(default_vals['ca']))
+                slope_val = st.selectbox("Slope of Peak Exercise ST", options=list(slope_options.keys()), format_func=lambda x: slope_options[x], index=list(slope_options.keys()).index(int(default_vals['slope'])), key=f"slope_{pv}")
+                ca_val = st.selectbox("Major Vessels Colored (ca)", options=[0.0, 1.0, 2.0, 3.0], index=int(default_vals['ca']), key=f"ca_{pv}")
 
             thal_options = {3: "Normal (3)", 6: "Fixed Defect (6)", 7: "Reversible Defect (7)"}
-            thal_val = st.selectbox("Thalassemia (thal)", options=list(thal_options.keys()), format_func=lambda x: thal_options[x], index=list(thal_options.keys()).index(int(default_vals['thal'])))
+            thal_val = st.selectbox("Thalassemia (thal)", options=list(thal_options.keys()), format_func=lambda x: thal_options[x], index=list(thal_options.keys()).index(int(default_vals['thal'])), key=f"thal_{pv}")
 
             submit_pred_btn = st.form_submit_button("⚡ Evaluate Cardiovascular Risk & Explain", use_container_width=True)
 
@@ -398,21 +433,25 @@ with tab1:
             'thal': int(thal_val)
         }
 
-        # Store in session state for persistence
-        if submit_pred_btn or "last_prediction" not in st.session_state:
+        # Check if auto-triggered by preset change or first load
+        auto_triggered = st.session_state.pop("auto_trigger_preset", False)
+        should_run_pred = submit_pred_btn or auto_triggered or ("last_prediction" not in st.session_state and health_data and health_data.get("status") == "healthy")
+
+        if should_run_pred:
             with st.spinner("Computing RBFN global inference & SHAP game-theoretic decomposition..."):
                 pred_res, pred_err = fetch_api("/predict", method="POST", payload=patient_payload)
                 if not pred_err and pred_res:
                     st.session_state["last_prediction"] = pred_res
                     st.session_state["last_patient_input"] = patient_payload
                 else:
-                    st.error(f"Inference error: {pred_err}")
+                    if submit_pred_btn or auto_triggered:
+                        st.error(f"Inference failed: {pred_err}")
 
         if "last_prediction" in st.session_state:
             pred = st.session_state["last_prediction"]
             score = pred["risk_score"]
             tier = pred["risk_tier"]
-            badge_class = f"risk-badge-{pred['risk_badge']}"
+            badge_class = f"risk-badge-{pred.get('risk_badge', 'moderate')}"
 
             # Visual summary banner
             col_m1, col_m2 = st.columns([1, 1])
@@ -435,7 +474,7 @@ with tab1:
             st.markdown(f"""
             <div class="narrative-box">
                 <b>Clinical Reasoning Summary:</b><br/>
-                {pred['plain_language_narrative']}
+                {pred.get('plain_language_narrative', '')}
             </div>
             """, unsafe_allow_html=True)
 
@@ -460,20 +499,20 @@ with tab1:
             # SHAP Waterfall Chart
             st.markdown("###### **Local SHAP Waterfall Attribution Chart**")
             waterfall_fig = render_shap_waterfall_plot(
-                pred["waterfall_steps"],
+                pred.get("waterfall_steps", []),
                 risk_score=score,
-                base_val=pred["base_value"]
+                base_val=pred.get("base_value", 0.5)
             )
             st.pyplot(waterfall_fig)
+            plt.close(waterfall_fig)
 
             # Bonus: Feature Interaction Matrix
             if pred.get("interactions"):
                 with st.expander("🔍 View Top Feature Synergy Interactions (Bonus)"):
                     st.caption("Non-linear cross-feature coupling effects captured by Radial Basis Gaussian kernels:")
                     inter_df = pd.DataFrame(pred["interactions"])
-                    st.dataframe(
+                    render_dataframe(
                         inter_df[['feature_1', 'feature_2', 'synergy', 'type']],
-                        use_container_width=True,
                         column_config={
                             "feature_1": "Feature A",
                             "feature_2": "Feature B",
@@ -489,18 +528,30 @@ with tab1:
                 target_hosp = st.selectbox(
                     "Hospital Node Destination",
                     options=["HOSP-01", "HOSP-02", "HOSP-03", "HOSP-04"],
-                    format_func=lambda x: f"{x} - {x.replace('HOSP-01', 'Cleveland Clinic').replace('HOSP-02', 'Hungarian Institute').replace('HOSP-03', 'Zurich Univ Hosp').replace('HOSP-04', 'Long Beach VA')}"
+                    format_func=lambda x: f"{x} - {x.replace('HOSP-01', 'Cleveland Clinic').replace('HOSP-02', 'Hungarian Institute').replace('HOSP-03', 'Zurich Univ Hosp').replace('HOSP-04', 'Long Beach VA')}",
+                    key="target_hosp_select"
                 )
             with col_ing2:
                 st.write("")
                 st.write("")
-                if st.button("📥 Ingest into Hospital Node", use_container_width=True):
-                    ingest_body = {**st.session_state["last_patient_input"], "hospital_id": target_hosp}
+                if st.button("📥 Ingest into Hospital Node", use_container_width=True, key="btn_ingest_patient"):
+                    patient_input = st.session_state.get("last_patient_input", patient_payload)
+                    ingest_body = {**patient_input, "hospital_id": target_hosp}
                     i_res, i_err = fetch_api("/ingest", method="POST", payload=ingest_body)
                     if not i_err and i_res:
-                        st.success(f"Record stored as {i_res['patient_identifier']} in {target_hosp}!")
+                        st.session_state["ingest_success_msg"] = f"Record successfully saved as **{i_res['patient_identifier']}** in node **{target_hosp}**!"
+                        st.rerun()
                     else:
                         st.error(f"Ingestion failed: {i_err}")
+
+            if "ingest_success_msg" in st.session_state:
+                st.success(st.session_state["ingest_success_msg"], icon="✅")
+                st.caption("You can inspect this record in the **Patient Ingestion Registry (Tab 4)**.")
+                if st.button("Dismiss", key="dismiss_ingest_msg"):
+                    del st.session_state["ingest_success_msg"]
+                    st.rerun()
+        else:
+            st.info("👈 Enter patient clinical vitals or select an archetype preset, then click **Evaluate Cardiovascular Risk & Explain**.")
 
 
 # =============================================================================
@@ -515,10 +566,10 @@ with tab2:
     hospitals_data, h_err = fetch_api("/hospitals")
 
     if not m_err and metrics_data:
-        g_metrics = metrics_data["global_metrics"]
-        c_baseline = metrics_data["centralized_baseline"]
-        dp_info = metrics_data["differential_privacy"]
-        history = metrics_data["round_history"]
+        g_metrics = metrics_data.get("global_metrics", {})
+        c_baseline = metrics_data.get("centralized_baseline", {})
+        dp_info = metrics_data.get("differential_privacy", {})
+        history = metrics_data.get("round_history", [])
 
         # Top summary KPI row
         kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
@@ -526,28 +577,28 @@ with tab2:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">Federated Rounds</div>
-                <div class="metric-value">{metrics_data['total_rounds']}</div>
+                <div class="metric-value">{metrics_data.get('total_rounds', 0)}</div>
             </div>
             """, unsafe_allow_html=True)
         with kpi2:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">Global FL Accuracy</div>
-                <div class="metric-value">{g_metrics['accuracy']*100:.1f}%</div>
+                <div class="metric-value">{g_metrics.get('accuracy', 0.0)*100:.1f}%</div>
             </div>
             """, unsafe_allow_html=True)
         with kpi3:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">Centralized Baseline</div>
-                <div class="metric-value" style="color: #a855f7;">{c_baseline['accuracy']*100:.1f}%</div>
+                <div class="metric-value" style="color: #a855f7;">{c_baseline.get('accuracy', 0.0)*100:.1f}%</div>
             </div>
             """, unsafe_allow_html=True)
         with kpi4:
             st.markdown(f"""
             <div class="metric-card">
                 <div class="metric-label">Global F1-Score</div>
-                <div class="metric-value">{g_metrics['f1']:.3f}</div>
+                <div class="metric-value">{g_metrics.get('f1', 0.0):.3f}</div>
             </div>
             """, unsafe_allow_html=True)
         with kpi5:
@@ -584,10 +635,9 @@ with tab2:
         if history:
             rounds_list = [r['round'] for r in history]
             fl_acc_list = [r['global_accuracy'] * 100 for r in history]
-            cent_acc_list = [r.get('centralized_benchmark', {}).get('accuracy', c_baseline['accuracy']) * 100 for r in history]
+            cent_acc_list = [r.get('centralized_benchmark', {}).get('accuracy', c_baseline.get('accuracy', 0.80)) * 100 for r in history]
             loss_list = [r['global_loss'] for r in history]
             f1_list = [r['global_f1'] for r in history]
-            eps_list = [r.get('dp_epsilon', 0) for r in history]
 
             chart_col1, chart_col2 = st.columns(2)
             with chart_col1:
@@ -623,7 +673,7 @@ with tab2:
             with f_col4:
                 fl_clip = st.slider("L2 Norm Clipping (C)", min_value=0.2, max_value=3.0, value=1.0, step=0.2, disabled=not fl_dp)
                 st.write("")
-                trigger_btn = st.button("🚀 Execute Federated Round", use_container_width=True)
+                trigger_btn = st.button("🚀 Execute Federated Round", use_container_width=True, key="btn_trigger_fl_round")
 
             if trigger_btn:
                 with st.spinner("Distributing weights → Training on 4 private hospital nodes → Aggregating via FedAvg..."):
@@ -641,7 +691,7 @@ with tab2:
                     else:
                         st.error(f"Round execution failed: {r_err}")
     else:
-        st.warning("Unable to fetch federated metrics from backend. Ensure backend is running.")
+        st.warning(f"Unable to fetch federated metrics from backend: {m_err}. Please ensure the backend is running.")
 
 
 # =============================================================================
@@ -676,16 +726,18 @@ with tab3:
                 spine.set_color('#334155')
             plt.tight_layout()
             st.pyplot(fig_g)
+            plt.close(fig_g)
 
-            st.dataframe(
+            render_dataframe(
                 feat_df[['label', 'importance', 'relative_pct']],
-                use_container_width=True,
                 column_config={
                     "label": "Clinical Feature",
                     "importance": st.column_config.NumberColumn("Mean |SHAP|", format="%.4f"),
                     "relative_pct": st.column_config.NumberColumn("Relative Share (%)", format="%.1f%%")
                 }
             )
+        else:
+            st.info("Global SHAP values are being calculated or backend is offline.")
 
     with col_ins2:
         st.markdown("##### **2. Harris Hawks Search (HHS) Feature Selection**")
@@ -718,7 +770,7 @@ with tab3:
             {"Feature": f[1], "Status": "✅ Selected" if f[0] in selected_set else "❌ Pruned", "Clinical Rationale": f[2]}
             for f in all_features
         ])
-        st.dataframe(hhs_df, use_container_width=True)
+        render_dataframe(hhs_df)
 
         st.markdown("##### **3. RBFN Neural Architecture**")
         st.markdown(r"""
@@ -740,12 +792,13 @@ with tab4:
     with c_filter:
         selected_hosp_filter = st.selectbox(
             "Filter by Hospital Node",
-            options=["ALL", "HOSP-01", "HOSP-02", "HOSP-03", "HOSP-04"]
+            options=["ALL", "HOSP-01", "HOSP-02", "HOSP-03", "HOSP-04"],
+            key="registry_filter_select"
         )
     with c_refresh:
         st.write("")
         st.write("")
-        refresh_patients = st.button("🔄 Refresh Records")
+        refresh_patients = st.button("🔄 Refresh Records", key="btn_refresh_patients")
 
     # Fetch patients
     endpoint = "/patients" if selected_hosp_filter == "ALL" else f"/patients?hospital_id={selected_hosp_filter}"
@@ -753,9 +806,9 @@ with tab4:
 
     if not p_err and patients_list:
         p_df = pd.DataFrame(patients_list)
-        st.dataframe(
-            p_df[['patient_identifier', 'hospital_id', 'age', 'sex', 'cp', 'trestbps', 'chol', 'thalach', 'exang', 'oldpeak', 'created_at']],
-            use_container_width=True,
+        available_cols = [c for c in ['patient_identifier', 'hospital_id', 'age', 'sex', 'cp', 'trestbps', 'chol', 'thalach', 'exang', 'oldpeak', 'created_at'] if c in p_df.columns]
+        render_dataframe(
+            p_df[available_cols],
             column_config={
                 "patient_identifier": "Chart ID",
                 "hospital_id": "Hospital Node",

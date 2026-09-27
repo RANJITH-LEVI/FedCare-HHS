@@ -1,4 +1,4 @@
-﻿"""
+"""
 FedCare-HHS Backend Application
 FastAPI REST API providing:
 - POST /predict: RBFN inference + SHAP explainability

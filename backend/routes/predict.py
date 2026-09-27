@@ -57,7 +57,7 @@ def predict_cardiac_risk(req: PredictionRequest, db: Session = Depends(get_db)):
         risk_score=explanation['risk_score'],
         risk_tier=explanation['risk_tier'],
         plain_language_narrative=explanation['plain_language_narrative'],
-        shap_explanation_json=json.dumps(explanation),
+        shap_explanation_json=json.dumps(explanation, default=str),
         created_at=datetime.utcnow()
     )
     db.add(db_pred)

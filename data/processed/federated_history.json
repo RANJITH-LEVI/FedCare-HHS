@@ -343,5 +343,143 @@
         "delta_norm": 0.0815
       }
     }
+  },
+  {
+    "round": 6,
+    "timestamp": "2026-09-27 21:18:11",
+    "duration_sec": 0.05,
+    "global_accuracy": 0.7405,
+    "global_precision": 0.8214,
+    "global_recall": 0.6765,
+    "global_f1": 0.7419,
+    "global_loss": 0.6322,
+    "global_roc_auc": 0.8429,
+    "dp_epsilon": 212.793,
+    "dp_delta": 0.0001,
+    "noise_multiplier": 0.05,
+    "clip_norm": 1.0,
+    "centralized_benchmark": {
+      "accuracy": 0.7946,
+      "precision": 0.8019,
+      "recall": 0.8333,
+      "f1": 0.8173,
+      "loss": 0.4426,
+      "roc_auc": 0.8704
+    },
+    "hospital_metrics": {
+      "cleveland": {
+        "hospital_id": "HOSP-01",
+        "name": "Cleveland Clinic Foundation",
+        "location": "Cleveland, OH, USA",
+        "train_samples": 262,
+        "val_samples": 61,
+        "local_accuracy": 0.7869,
+        "local_f1": 0.7547,
+        "local_loss": 0.6186,
+        "delta_norm": 0.3088
+      },
+      "hungarian": {
+        "hospital_id": "HOSP-02",
+        "name": "Hungarian Institute of Cardiology",
+        "location": "Budapest, Hungary",
+        "train_samples": 300,
+        "val_samples": 59,
+        "local_accuracy": 0.8983,
+        "local_f1": 0.8571,
+        "local_loss": 0.5818,
+        "delta_norm": 0.3913
+      },
+      "switzerland": {
+        "hospital_id": "HOSP-03",
+        "name": "University Hospital Zurich",
+        "location": "Zurich, Switzerland",
+        "train_samples": 184,
+        "val_samples": 25,
+        "local_accuracy": 0.36,
+        "local_f1": 0.5,
+        "local_loss": 0.7325,
+        "delta_norm": 0.241
+      },
+      "va": {
+        "hospital_id": "HOSP-04",
+        "name": "V.A. Medical Center",
+        "location": "Long Beach, CA, USA",
+        "train_samples": 238,
+        "val_samples": 40,
+        "local_accuracy": 0.625,
+        "local_f1": 0.7273,
+        "local_loss": 0.6796,
+        "delta_norm": 0.1659
+      }
+    }
+  },
+  {
+    "round": 7,
+    "timestamp": "2026-09-27 21:29:52",
+    "duration_sec": 0.05,
+    "global_accuracy": 0.7405,
+    "global_precision": 0.8214,
+    "global_recall": 0.6765,
+    "global_f1": 0.7419,
+    "global_loss": 0.6322,
+    "global_roc_auc": 0.8429,
+    "dp_epsilon": 229.842,
+    "dp_delta": 0.0001,
+    "noise_multiplier": 0.05,
+    "clip_norm": 1.0,
+    "centralized_benchmark": {
+      "accuracy": 0.7946,
+      "precision": 0.8019,
+      "recall": 0.8333,
+      "f1": 0.8173,
+      "loss": 0.4426,
+      "roc_auc": 0.8704
+    },
+    "hospital_metrics": {
+      "cleveland": {
+        "hospital_id": "HOSP-01",
+        "name": "Cleveland Clinic Foundation",
+        "location": "Cleveland, OH, USA",
+        "train_samples": 262,
+        "val_samples": 61,
+        "local_accuracy": 0.7869,
+        "local_f1": 0.7547,
+        "local_loss": 0.6186,
+        "delta_norm": 0.3088
+      },
+      "hungarian": {
+        "hospital_id": "HOSP-02",
+        "name": "Hungarian Institute of Cardiology",
+        "location": "Budapest, Hungary",
+        "train_samples": 300,
+        "val_samples": 59,
+        "local_accuracy": 0.8983,
+        "local_f1": 0.8571,
+        "local_loss": 0.5818,
+        "delta_norm": 0.3913
+      },
+      "switzerland": {
+        "hospital_id": "HOSP-03",
+        "name": "University Hospital Zurich",
+        "location": "Zurich, Switzerland",
+        "train_samples": 184,
+        "val_samples": 25,
+        "local_accuracy": 0.36,
+        "local_f1": 0.5,
+        "local_loss": 0.7325,
+        "delta_norm": 0.241
+      },
+      "va": {
+        "hospital_id": "HOSP-04",
+        "name": "V.A. Medical Center",
+        "location": "Long Beach, CA, USA",
+        "train_samples": 238,
+        "val_samples": 40,
+        "local_accuracy": 0.625,
+        "local_f1": 0.7273,
+        "local_loss": 0.6796,
+        "delta_norm": 0.1659
+      }
+    }
   }
 ]

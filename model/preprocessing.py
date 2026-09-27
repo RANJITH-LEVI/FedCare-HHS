@@ -173,6 +173,9 @@ class ClinicalDataPipeline:
             return pickle.load(f)
 
 
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
 def load_raw_dataset(site_key: str) -> pd.DataFrame:
     """Loads a specific hospital's raw dataset with column names and binarized target."""
     info = HOSPITALS_INFO.get(site_key)
@@ -180,6 +183,8 @@ def load_raw_dataset(site_key: str) -> pd.DataFrame:
         raise ValueError(f"Unknown site key: {site_key}. Available: {list(HOSPITALS_INFO.keys())}")
     
     file_path = info['raw_file']
+    if not os.path.isabs(file_path):
+        file_path = os.path.join(PROJECT_ROOT, file_path)
     cols = FEATURE_NAMES + [TARGET_NAME]
     df = pd.read_csv(file_path, names=cols, na_values='?')
     

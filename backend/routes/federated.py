@@ -60,7 +60,7 @@ def trigger_federated_round(req: FederatedRoundTriggerRequest = FederatedRoundTr
         global_roc_auc=round_res['global_roc_auc'],
         dp_epsilon=round_res.get('dp_epsilon'),
         dp_delta=round_res.get('dp_delta'),
-        per_hospital_metrics_json=json.dumps(round_res.get('hospital_metrics', {})),
+        per_hospital_metrics_json=json.dumps(round_res.get('hospital_metrics', {}), default=str),
         duration_seconds=round_res.get('duration_sec', 0.0),
         timestamp=datetime.utcnow()
     )

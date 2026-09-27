@@ -1,15 +1,15 @@
 {
   "metrics": {
-    "round": 5,
-    "timestamp": "2026-09-27 19:04:26",
-    "duration_sec": 0.06,
-    "global_accuracy": 0.7838,
-    "global_precision": 0.869,
-    "global_recall": 0.7157,
-    "global_f1": 0.7849,
-    "global_loss": 0.5652,
-    "global_roc_auc": 0.8733,
-    "dp_epsilon": 194.252,
+    "round": 7,
+    "timestamp": "2026-09-27 21:29:52",
+    "duration_sec": 0.05,
+    "global_accuracy": 0.7405,
+    "global_precision": 0.8214,
+    "global_recall": 0.6765,
+    "global_f1": 0.7419,
+    "global_loss": 0.6322,
+    "global_roc_auc": 0.8429,
+    "dp_epsilon": 229.842,
     "dp_delta": 0.0001,
     "noise_multiplier": 0.05,
     "clip_norm": 1.0,
@@ -28,10 +28,10 @@
         "location": "Cleveland, OH, USA",
         "train_samples": 262,
         "val_samples": 61,
-        "local_accuracy": 0.8361,
-        "local_f1": 0.8077,
-        "local_loss": 0.5506,
-        "delta_norm": 0.2181
+        "local_accuracy": 0.7869,
+        "local_f1": 0.7547,
+        "local_loss": 0.6186,
+        "delta_norm": 0.3088
       },
       "hungarian": {
         "hospital_id": "HOSP-02",
@@ -41,8 +41,8 @@
         "val_samples": 59,
         "local_accuracy": 0.8983,
         "local_f1": 0.8571,
-        "local_loss": 0.4933,
-        "delta_norm": 0.272
+        "local_loss": 0.5818,
+        "delta_norm": 0.3913
       },
       "switzerland": {
         "hospital_id": "HOSP-03",
@@ -50,10 +50,10 @@
         "location": "Zurich, Switzerland",
         "train_samples": 184,
         "val_samples": 25,
-        "local_accuracy": 0.52,
-        "local_f1": 0.6667,
-        "local_loss": 0.6991,
-        "delta_norm": 0.1775
+        "local_accuracy": 0.36,
+        "local_f1": 0.5,
+        "local_loss": 0.7325,
+        "delta_norm": 0.241
       },
       "va": {
         "hospital_id": "HOSP-04",
@@ -61,10 +61,10 @@
         "location": "Long Beach, CA, USA",
         "train_samples": 238,
         "val_samples": 40,
-        "local_accuracy": 0.65,
-        "local_f1": 0.75,
-        "local_loss": 0.6249,
-        "delta_norm": 0.0815
+        "local_accuracy": 0.625,
+        "local_f1": 0.7273,
+        "local_loss": 0.6796,
+        "delta_norm": 0.1659
       }
     }
   },
@@ -239,24 +239,24 @@
       2.7170429853094755
     ],
     "weights": [
-      0.20611991658436302,
-      -0.177292934003612,
-      0.18500110577779935,
-      0.1810404665999862,
-      -0.5267130832628932,
-      0.02848176822200515,
-      -0.0022862864648807548,
-      0.4804706851538801,
-      0.3036053647505677,
-      0.02689401270717266,
-      -0.4658740580321803,
-      0.275111717854326,
-      0.33605683528250396,
-      -0.21105511553442538,
-      -0.4477684184246991,
-      -0.17241448478156285
+      0.040777366609458264,
+      0.11140073583844984,
+      0.19167415795482237,
+      0.12578156341063315,
+      -0.28000908286290704,
+      -0.10807675327844146,
+      -0.06841864271413908,
+      0.31888528182447307,
+      0.11843739368964781,
+      0.12203285298889084,
+      -0.32882926107316146,
+      0.2474297577853947,
+      0.23970830800204146,
+      -0.2171255434530106,
+      -0.33199816873706967,
+      -0.1716615201290817
     ],
-    "bias": -0.06349274226675411,
+    "bias": -0.02359838199291873,
     "is_fitted": true
   },
   "selected_features": [
