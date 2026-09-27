@@ -1,8 +1,7 @@
-# FedCare-HHS Frontend Requirements (Streamlit Community Cloud)
-streamlit==1.39.0
-requests==2.32.3
-numpy==1.26.4
-pandas==2.2.3
-matplotlib==3.9.3
-pillow==11.0.0
-plotly==5.24.1
+# FedCare-HHS Frontend Dependencies (Streamlit Community Cloud)
+# Uses wheel-compatible version ranges to avoid compiling from source
+streamlit>=1.38.0
+requests>=2.31.0
+numpy>=1.26.0
+pandas>=2.1.0
+matplotlib>=3.8.0
