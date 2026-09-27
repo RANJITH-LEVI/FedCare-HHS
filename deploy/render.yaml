@@ -1,0 +1,30 @@
+services:
+  # FedCare-HHS FastAPI Backend Service
+  - type: web
+    name: fedcare-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: "/health"
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        value: sqlite:////tmp/fedcare.db
+
+  # FedCare-HHS Streamlit Frontend Service
+  - type: web
+    name: fedcare-frontend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install streamlit requests matplotlib pandas numpy"
+    startCommand: "streamlit run frontend/app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true"
+    envVars:
+      - key: FEDCARE_BACKEND_URL
+        fromService:
+          type: web
+          name: fedcare-backend
+          property: host
