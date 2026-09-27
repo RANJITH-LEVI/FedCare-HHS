@@ -1,46 +1,11 @@
-﻿# FedCare-HHS — Python 3.11 compatible production requirements
-# Fixed: removed numba/llvmlite, pinned contourpy to 3.11-compatible version
+﻿# FedCare-HHS — requirements.txt
+# Read by Streamlit Community Cloud for the FRONTEND
+# Render backend uses requirements-render.txt (set in render.yaml buildCommand)
 
-# --- Web Framework ---
-fastapi==0.115.6
-uvicorn[standard]==0.32.1
-starlette==0.41.3
-python-multipart==0.0.12
-python-dotenv==1.0.1
-
-# --- Data & ML ---
+streamlit==1.39.0
+requests==2.32.3
 numpy==1.26.4
 pandas==2.2.3
-scikit-learn==1.5.2
-scipy==1.14.1
-imbalanced-learn==0.12.4
-joblib==1.4.2
-threadpoolctl==3.5.0
-
-# --- Explainability ---
-shap==0.46.0
-slicer==0.0.8
-
-# --- Federated Learning (simulation only, no gRPC server binding) ---
-flwr==1.9.0
-
-# --- Database ---
-SQLAlchemy==2.0.36
-greenlet==3.1.1
-alembic==1.13.3
-
-# --- HTTP & Validation ---
-httpx==0.27.2
-httpcore==1.0.6
-httptools==0.6.4
-pydantic==2.10.1
-pydantic-core==2.27.1
-annotated-types==0.7.0
-typing_extensions==4.12.2
-anyio==4.6.2
-sniffio==1.3.1
-
-# --- Plotting (SHAP waterfall base64) ---
 matplotlib==3.9.3
 contourpy==1.3.0
 cycler==0.12.1
@@ -48,19 +13,4 @@ fonttools==4.55.0
 kiwisolver==1.4.7
 pyparsing==3.2.0
 pillow==11.0.0
-
-# --- Utilities ---
-requests==2.32.3
-tqdm==4.67.1
-PyYAML==6.0.2
-six==1.16.0
-packaging==24.2
-certifi==2024.12.14
-charset-normalizer==3.4.0
-idna==3.10
-urllib3==2.2.3
-click==8.1.8
-cloudpickle==3.1.1
-attrs==24.2.0
-pyarrow==18.1.0
-rich==13.9.4
+plotly==5.24.1
