@@ -21,13 +21,28 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Backend URL — reads from Streamlit secrets (cloud) → env var → localhost
+# Backend URL — auto-detects secrets → env var → local 8000 → live Render cloud
 def _get_backend_url() -> str:
     try:
-        return st.secrets["FEDCARE_BACKEND_URL"].rstrip("/")
+        if "FEDCARE_BACKEND_URL" in st.secrets:
+            return st.secrets["FEDCARE_BACKEND_URL"].rstrip("/")
     except Exception:
         pass
-    return os.getenv("FEDCARE_BACKEND_URL", os.getenv("API_BASE_URL", "http://localhost:8000")).rstrip("/")
+
+    env_url = os.getenv("FEDCARE_BACKEND_URL", os.getenv("API_BASE_URL"))
+    if env_url:
+        return env_url.rstrip("/")
+
+    # Check if local backend is active
+    try:
+        resp = requests.get("http://127.0.0.1:8000/health", timeout=0.8)
+        if resp.status_code == 200:
+            return "http://127.0.0.1:8000"
+    except Exception:
+        pass
+
+    # Default to live deployed backend on Render
+    return "https://fedcare-hhs.onrender.com"
 
 DEFAULT_API_BASE_URL = _get_backend_url()
 if "backend_url" not in st.session_state:
