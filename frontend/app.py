@@ -275,7 +275,11 @@ with st.sidebar:
             st.warning("● Backend Warming Up Model...", icon="⏳")
     else:
         st.error("● Backend Offline", icon="⚠️")
-        st.caption(f"Error: {health_err}")
+        st.caption(f"Status: {health_err}")
+        if "onrender.com" in st.session_state["backend_url"]:
+            st.info("💡 Render Free Tier instances spin down when inactive. Waking up may take ~45 seconds.")
+        if st.button("🔄 Retry Connection", key="btn_retry_health"):
+            st.rerun()
 
     st.markdown("---")
     st.markdown("#### **Clinical Demo Presets**")
