@@ -19,15 +19,26 @@ const FEATURE_LABELS = {
 };
 
 export default function ShapBarChart({ shapValues = {}, patientData = {} }) {
-  // Convert shapValues dictionary to sorted array by absolute magnitude
-  const items = Object.entries(shapValues)
-    .map(([feature, val]) => ({
+  let rawItems = [];
+  if (Array.isArray(shapValues)) {
+    rawItems = shapValues.map(item => ({
+      feature: item.feature,
+      label: item.label || FEATURE_LABELS[item.feature] || item.feature?.toUpperCase(),
+      val: parseFloat(item.shap_value) || 0,
+      absVal: Math.abs(parseFloat(item.shap_value) || 0),
+      patientVal: patientData[item.feature] ?? item.raw_value,
+    }));
+  } else if (typeof shapValues === 'object' && shapValues !== null) {
+    rawItems = Object.entries(shapValues).map(([feature, val]) => ({
       feature,
       label: FEATURE_LABELS[feature] || feature.toUpperCase(),
       val: parseFloat(val) || 0,
       absVal: Math.abs(parseFloat(val) || 0),
       patientVal: patientData[feature],
-    }))
+    }));
+  }
+
+  const items = rawItems
     .sort((a, b) => b.absVal - a.absVal)
     .slice(0, 8); // Top 8 contributors
 

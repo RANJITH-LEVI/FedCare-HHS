@@ -46,13 +46,40 @@ class ApiService {
 
   async predict(patientData) {
     try {
-      return await this.fetchWithTimeout('/predict', {
+      const res = await this.fetchWithTimeout('/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patientData),
-      }, 8000);
+      }, 10000);
+
+      const probability = res.risk_score ?? res.probability ?? (res.risk_percentage ? res.risk_percentage / 100 : 0);
+      const riskLevel = res.risk_tier ?? res.risk_level ?? 'Low Risk';
+
+      // Parse feature_attributions list into simple shapValues dictionary
+      let shapDict = {};
+      if (res.feature_attributions && Array.isArray(res.feature_attributions)) {
+        res.feature_attributions.forEach(item => {
+          if (item.feature && item.shap_value !== undefined) {
+            shapDict[item.feature] = item.shap_value;
+          }
+        });
+      } else if (res.shap_values && typeof res.shap_values === 'object') {
+        shapDict = res.shap_values;
+      }
+
+      return {
+        ...res,
+        prediction: res.prediction ?? (probability > 0.5 ? 1 : 0),
+        probability,
+        risk_score: probability,
+        risk_level: riskLevel,
+        riskLevel,
+        risk_tier: riskLevel,
+        shap_values: shapDict,
+        shapValues: shapDict,
+        narrative: res.plain_language_narrative || res.narrative || '',
+      };
     } catch (err) {
-      // Offline fallback risk calculation if backend is unreachable
       console.warn('Backend server unreachable, computing local evaluation fallback:', err.message);
       return this.fallbackLocalPredict(patientData);
     }
