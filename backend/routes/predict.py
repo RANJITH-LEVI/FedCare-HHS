@@ -48,6 +48,7 @@ def predict_cardiac_risk(req: PredictionRequest, db: Session = Depends(get_db)):
 
     try:
         explanation = mgr.predict_and_explain(patient_dict)
+        explanation['raw_patient_dict'] = patient_dict
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction and explanation failed: {str(e)}")
 
@@ -71,7 +72,7 @@ def predict_cardiac_risk(req: PredictionRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/predict/history")
-def get_prediction_history(limit: int = 20, db: Session = Depends(get_db)):
+def get_prediction_history(limit: int = 30, db: Session = Depends(get_db)):
     """Retrieves recent clinical risk assessments."""
     preds = db.query(PredictionModel).order_by(PredictionModel.created_at.desc()).limit(limit).all()
     results = []
@@ -87,7 +88,9 @@ def get_prediction_history(limit: int = 20, db: Session = Depends(get_db)):
             'risk_tier': p.risk_tier,
             'plain_language_narrative': p.plain_language_narrative,
             'created_at': p.created_at,
+            'patient_data': exp_data.get('raw_patient_dict', {}),
             'top_risk_factors': exp_data.get('top_risk_factors', []),
-            'top_protective_factors': exp_data.get('top_protective_factors', [])
+            'top_protective_factors': exp_data.get('top_protective_factors', []),
+            'feature_attributions': exp_data.get('feature_attributions', [])
         })
     return results

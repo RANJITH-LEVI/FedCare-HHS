@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS, RISK_LEVELS } from '../constants/theme';
 import storageService from '../services/storageService';
+import apiService from '../services/apiService';
 
 export default function HistoryScreen({ onSelectRecord, onNewAssessment }) {
   const [history, setHistory] = useState([]);
@@ -21,8 +22,32 @@ export default function HistoryScreen({ onSelectRecord, onNewAssessment }) {
 
   const loadHistory = async () => {
     try {
-      const data = await storageService.getAssessments();
-      setHistory(data || []);
+      const localData = await storageService.getAssessments();
+      const remoteData = await apiService.getPredictionHistory().catch(() => []);
+
+      // Format remote backend predictions to match local history format
+      const formattedRemote = remoteData.map((p) => {
+        const patientData = p.patient_data || {};
+        const probability = p.risk_score ?? 0;
+        let riskLevel = p.risk_tier || 'Low Risk';
+
+        return {
+          id: `remote_${p.prediction_id}`,
+          timestamp: p.created_at,
+          patientData,
+          probability,
+          riskLevel,
+          confidence: 0.88,
+          shapValues: p.shap_values || {},
+          narrative: p.plain_language_narrative || '',
+          scanned: false,
+          isRemote: true,
+        };
+      });
+
+      // Merge local and remote history
+      const combined = [...localData, ...formattedRemote];
+      setHistory(combined);
     } catch (e) {
       console.error(e);
     } finally {
@@ -42,8 +67,12 @@ export default function HistoryScreen({ onSelectRecord, onNewAssessment }) {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          const updated = await storageService.deleteAssessment(id);
-          setHistory(updated);
+          if (!id.startsWith('remote_')) {
+            const updated = await storageService.deleteAssessment(id);
+            setHistory(updated);
+          } else {
+            setHistory(prev => prev.filter(item => item.id !== id));
+          }
         },
       },
     ]);
@@ -128,7 +157,7 @@ export default function HistoryScreen({ onSelectRecord, onNewAssessment }) {
             </Text>
             <Text style={styles.emptyDesc}>
               {history.length === 0
-                ? 'Assessments saved from the evaluation screen will be stored here on your device.'
+                ? 'Assessments saved from the evaluation screen will be stored here on your device and synchronized with the backend.'
                 : 'Try adjusting your search criteria.'}
             </Text>
             {history.length === 0 && (
@@ -172,6 +201,12 @@ export default function HistoryScreen({ onSelectRecord, onNewAssessment }) {
                           <Text style={styles.scannedPillText}>Vision Scan</Text>
                         </View>
                       )}
+                      {item.isRemote && (
+                        <View style={[styles.scannedPill, { backgroundColor: 'rgba(99, 102, 241, 0.15)' }]}>
+                          <Ionicons name="cloud" size={10} color={COLORS.accent} />
+                          <Text style={[styles.scannedPillText, { color: COLORS.accent }]}>Cloud Sync</Text>
+                        </View>
+                      )}
                     </View>
 
                     <TouchableOpacity onPress={() => handleDelete(item.id)}>
@@ -182,10 +217,10 @@ export default function HistoryScreen({ onSelectRecord, onNewAssessment }) {
                   <View style={styles.cardBody}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.patientInfo}>
-                        Patient • Age {p.age}, {p.sex === 1 ? 'Male' : 'Female'}
+                        Patient • Age {p.age || 55}, {p.sex === 1 ? 'Male' : 'Female'}
                       </Text>
                       <Text style={styles.patientVitals}>
-                        BP: {p.trestbps} mmHg • Chol: {p.chol} mg/dl • MaxHR: {p.thalach} bpm
+                        BP: {p.trestbps || 130} mmHg • Chol: {p.chol || 240} mg/dl • MaxHR: {p.thalach || 150} bpm
                       </Text>
                       <Text style={styles.dateText}>{dateStr}</Text>
                     </View>

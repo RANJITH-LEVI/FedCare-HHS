@@ -123,6 +123,13 @@ export default function AssessmentScreen({ onAssessmentComplete }) {
         scanned: scannedBadge,
       };
 
+      // Automatically persist to local patient history storage
+      try {
+        await storageService.saveAssessment(assessmentResult);
+      } catch (e) {
+        console.warn('Auto-save history failed:', e.message);
+      }
+
       setEvaluating(false);
       onAssessmentComplete(assessmentResult);
     } catch (err) {
