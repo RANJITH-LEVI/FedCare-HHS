@@ -118,8 +118,42 @@ class ApiService {
 
   async scanDocument(fileUri, mimeType = 'image/jpeg', fileName = 'report.jpg') {
     const baseUrl = await getApiUrl();
-    const url = `${baseUrl}/scan`;
 
+    // 1. Try base64 conversion first (bulletproof across React Native Hermes, Web, Android, iOS)
+    try {
+      const fileRes = await fetch(fileUri);
+      const blob = await fileRes.blob();
+
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result;
+          if (typeof result === 'string') {
+            resolve(result);
+          } else {
+            reject(new Error('Failed to read image base64'));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      const extractedData = await this.fetchWithTimeout('/scan-base64', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_base64: base64Data,
+          mime_type: mimeType,
+        }),
+      }, 35000);
+
+      return { extracted_features: extractedData };
+    } catch (e) {
+      console.warn('Base64 scan conversion failed, attempting multipart fallback:', e.message);
+    }
+
+    // 2. Multipart FormData Fallback
+    const url = `${baseUrl}/scan`;
     const formData = new FormData();
 
     if (Platform.OS === 'web') {
@@ -128,7 +162,7 @@ class ApiService {
       formData.append('file', blob, fileName);
     } else {
       formData.append('file', {
-        uri: fileUri,
+        uri: Platform.OS === 'android' ? fileUri : fileUri.replace('file://', ''),
         type: mimeType,
         name: fileName,
       });
@@ -148,7 +182,8 @@ class ApiService {
       throw new Error(msg);
     }
 
-    return await response.json();
+    const resJson = await response.json();
+    return { extracted_features: resJson };
   }
 
   async getHospitalDatasets() {
