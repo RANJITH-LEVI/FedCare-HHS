@@ -87,11 +87,7 @@ class ApiService {
 
   async explain(patientData) {
     try {
-      return await this.fetchWithTimeout('/explain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patientData),
-      }, 8000);
+      return await this.predict(patientData);
     } catch (err) {
       return this.fallbackLocalExplain(patientData);
     }
@@ -118,53 +114,55 @@ class ApiService {
     return {
       prediction: prob > 0.5 ? 1 : 0,
       probability: prob,
+      risk_score: prob,
       risk_level,
+      riskLevel: risk_level,
+      risk_tier: risk_level,
       confidence: 0.88,
       is_offline: true,
+      shapValues: {
+        cp: p.cp === 4 ? 0.220 : 0.050,
+        oldpeak: p.oldpeak > 1.0 ? p.oldpeak * 0.12 : -0.040,
+        ca: p.ca > 0 ? p.ca * 0.11 : -0.050,
+        thal: (p.thal === 6 || p.thal === 7) ? 0.180 : -0.080,
+        thalach: p.thalach < 140 ? 0.120 : -0.090,
+        trestbps: p.trestbps > 140 ? 0.090 : -0.030,
+        chol: p.chol > 240 ? 0.070 : -0.020,
+        age: p.age > 55 ? 0.080 : -0.040,
+      },
+      narrative: `Local AI Analysis: Primary risk drivers include ${p.cp === 4 ? 'Asymptomatic Chest Pain' : 'Symptomatic CP'}, Resting BP (${p.trestbps} mmHg), and ST Depression (${p.oldpeak} mm).`,
     };
   }
 
   fallbackLocalExplain(p) {
-    const shap = {
-      cp: p.cp === 4 ? '+0.220' : '+0.050',
-      oldpeak: p.oldpeak > 1.0 ? `+${(p.oldpeak * 0.12).toFixed(3)}` : '-0.040',
-      ca: p.ca > 0 ? `+${(p.ca * 0.11).toFixed(3)}` : '-0.050',
-      thal: (p.thal === 6 || p.thal === 7) ? '+0.180' : '-0.080',
-      thalach: p.thalach < 140 ? '+0.120' : '-0.090',
-      trestbps: p.trestbps > 140 ? '+0.090' : '-0.030',
-      chol: p.chol > 240 ? '+0.070' : '-0.020',
-      age: p.age > 55 ? '+0.080' : '-0.040',
-    };
-
-    return {
-      shap_values: shap,
-      narrative: `Local AI Analysis: Primary risk drivers include ${p.cp === 4 ? 'Asymptomatic Chest Pain' : 'Symptomatic CP'}, Resting BP (${p.trestbps} mmHg), and ST Depression (${p.oldpeak} mm).`,
-      interactions: [],
-    };
+    return this.fallbackLocalPredict(p);
   }
 
   async scanDocument(fileUri, mimeType = 'image/jpeg', fileName = 'report.jpg') {
-    const baseUrl = await getApiUrl();
+    let base64Data = null;
 
-    // 1. Try base64 conversion first (bulletproof across React Native Hermes, Web, Android, iOS)
+    // Read image file as base64 string via FileReader blob
     try {
       const fileRes = await fetch(fileUri);
       const blob = await fileRes.blob();
 
-      const base64Data = await new Promise((resolve, reject) => {
+      base64Data = await new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          const result = reader.result;
-          if (typeof result === 'string') {
-            resolve(result);
+          if (typeof reader.result === 'string') {
+            resolve(reader.result);
           } else {
-            reject(new Error('Failed to read image base64'));
+            reject(new Error('FileReader returned non-string result'));
           }
         };
-        reader.onerror = reject;
+        reader.onerror = () => reject(new Error('FileReader failed to read file'));
         reader.readAsDataURL(blob);
       });
+    } catch (e) {
+      console.warn('FileReader blob conversion failed:', e.message);
+    }
 
+    if (base64Data) {
       const extractedData = await this.fetchWithTimeout('/scan-base64', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,42 +173,9 @@ class ApiService {
       }, 35000);
 
       return { extracted_features: extractedData };
-    } catch (e) {
-      console.warn('Base64 scan conversion failed, attempting multipart fallback:', e.message);
     }
 
-    // 2. Multipart FormData Fallback
-    const url = `${baseUrl}/scan`;
-    const formData = new FormData();
-
-    if (Platform.OS === 'web') {
-      const res = await fetch(fileUri);
-      const blob = await res.blob();
-      formData.append('file', blob, fileName);
-    } else {
-      formData.append('file', {
-        uri: Platform.OS === 'android' ? fileUri : fileUri.replace('file://', ''),
-        type: mimeType,
-        name: fileName,
-      });
-    }
-
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      let msg = 'Failed to extract document';
-      try {
-        const errJson = await response.json();
-        if (errJson.detail) msg = errJson.detail;
-      } catch (e) {}
-      throw new Error(msg);
-    }
-
-    const resJson = await response.json();
-    return { extracted_features: resJson };
+    throw new Error('Could not read image file. Try taking another photo or select a quick demo preset.');
   }
 
   async getHospitalDatasets() {
@@ -227,6 +192,14 @@ class ApiService {
 
   async getModelMetrics() {
     return this.fetchWithTimeout('/model/metrics', { method: 'GET' });
+  }
+
+  async getPredictionHistory() {
+    try {
+      return await this.fetchWithTimeout('/predict/history', { method: 'GET' }, 8000);
+    } catch (e) {
+      return [];
+    }
   }
 
   async triggerFederatedRound(epochs = 15) {
