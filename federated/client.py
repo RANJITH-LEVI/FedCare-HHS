@@ -42,24 +42,28 @@ class HospitalNumPyClient(fl.client.NumPyClient):
         self.rng = np.random.RandomState(random_state)
 
     def get_parameters(self, config: Dict[str, Any]) -> List[np.ndarray]:
-        """Returns current local model parameters [weights, bias]."""
+        """Returns current local model parameters [weights, linear_weights, bias]."""
         return self.model.get_weights()
 
     def fit(self, parameters: List[np.ndarray], config: Dict[str, Any]) -> Tuple[List[np.ndarray], int, Dict[str, Any]]:
         """
         Executes local training round on hospital's internal private dataset.
-        Applies Differential Privacy (L2-norm clipping + Gaussian noise) on the weight delta.
+        Applies Differential Privacy (L2-norm clipping + Gaussian noise) on parameter deltas.
         """
         # 1. Update model with global parameters
         self.model.set_weights(parameters)
         w_init = parameters[0].copy()
-        b_init = float(parameters[1][0])
+        if len(parameters) > 2:
+            lw_init = parameters[1].copy()
+            b_init = float(parameters[2][0])
+        else:
+            lw_init = np.zeros_like(self.model.linear_weights_)
+            b_init = float(parameters[1][0])
 
         # 2. Local epoch training
         local_epochs = int(config.get("local_epochs", 15))
         lr = float(config.get("lr", self.model.learning_rate))
         
-        # Save previous config and run local iterations
         prev_max_iter = self.model.max_iter
         prev_lr = self.model.learning_rate
         self.model.max_iter = local_epochs
@@ -70,31 +74,37 @@ class HospitalNumPyClient(fl.client.NumPyClient):
         self.model.max_iter = prev_max_iter
         self.model.learning_rate = prev_lr
 
-        # 3. Calculate Weight Delta: Delta_theta = theta_trained - theta_init
+        # 3. Calculate Weight Deltas
         delta_w = self.model.weights_ - w_init
+        delta_lw = self.model.linear_weights_ - lw_init
         delta_b = self.model.bias_ - b_init
 
         # 4. Differential Privacy: L2 Gradient/Delta Clipping + Gaussian Noise
-        norm_before = float(np.sqrt(np.sum(delta_w ** 2) + delta_b ** 2))
+        norm_before = float(np.sqrt(np.sum(delta_w ** 2) + np.sum(delta_lw ** 2) + delta_b ** 2))
         
         if self.dp_enabled and self.clip_norm > 0:
             clip_factor = min(1.0, self.clip_norm / max(norm_before, 1e-8))
             delta_w_clipped = delta_w * clip_factor
+            delta_lw_clipped = delta_lw * clip_factor
             delta_b_clipped = delta_b * clip_factor
 
             # Calibrated Gaussian Noise scale = sigma_DP * C
             noise_scale = self.noise_multiplier * self.clip_norm
             noise_w = self.rng.normal(0.0, noise_scale, size=delta_w.shape)
+            noise_lw = self.rng.normal(0.0, noise_scale, size=delta_lw.shape)
             noise_b = self.rng.normal(0.0, noise_scale)
 
             delta_w_priv = delta_w_clipped + noise_w
+            delta_lw_priv = delta_lw_clipped + noise_lw
             delta_b_priv = delta_b_clipped + noise_b
         else:
             delta_w_priv = delta_w
+            delta_lw_priv = delta_lw
             delta_b_priv = delta_b
 
         # Final private weights to send to server
         w_priv = w_init + delta_w_priv
+        lw_priv = lw_init + delta_lw_priv
         b_priv = np.array([b_init + delta_b_priv], dtype=float)
 
         # Local train evaluation metrics
@@ -107,7 +117,7 @@ class HospitalNumPyClient(fl.client.NumPyClient):
             'noise_multiplier': self.noise_multiplier if self.dp_enabled else 0.0
         })
 
-        return [w_priv, b_priv], len(self.X_train), train_metrics
+        return [w_priv, lw_priv, b_priv], len(self.X_train), train_metrics
 
     def evaluate(self, parameters: List[np.ndarray], config: Dict[str, Any]) -> Tuple[float, int, Dict[str, Any]]:
         """

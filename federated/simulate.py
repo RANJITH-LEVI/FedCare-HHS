@@ -244,14 +244,21 @@ class FederatedSimulationManager:
             }
 
         # 2. Server FedAvg Parameter Aggregation
-        # theta_global = sum_k (n_k / total_samples) * theta_k
         agg_w = np.zeros_like(global_weights[0])
+        agg_lw = np.zeros_like(global_weights[1]) if len(global_weights) > 2 else np.zeros_like(self.global_model.linear_weights_)
         agg_b = 0.0
 
-        for (w_client, b_client), n_samples in client_updates:
+        for client_params, n_samples in client_updates:
             weight_factor = n_samples / max(total_samples, 1)
-            agg_w += weight_factor * w_client
-            agg_b += weight_factor * float(b_client[0])
+            agg_w += weight_factor * client_params[0]
+            if len(client_params) > 2:
+                agg_lw += weight_factor * client_params[1]
+                agg_b += weight_factor * float(client_params[2][0])
+            else:
+                agg_b += weight_factor * float(client_params[1][0])
+
+        new_global_weights = [agg_w, agg_lw, np.array([agg_b], dtype=float)]
+        self.global_model.set_weights(new_global_weights)
 
         new_global_weights = [agg_w, np.array([agg_b], dtype=float)]
         self.global_model.set_weights(new_global_weights)
