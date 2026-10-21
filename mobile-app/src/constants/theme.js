@@ -44,11 +44,35 @@ export const RISK_LEVELS = {
     icon: 'shield-checkmark',
     recommendation: 'Annual cardiovascular checkup recommended. Maintain regular aerobic exercise and Mediterranean-style diet.'
   },
+  'Low': {
+    color: COLORS.riskLow,
+    bg: COLORS.riskLowBg,
+    border: COLORS.riskLowBorder,
+    badge: 'HEALTHY / LOW RISK',
+    icon: 'shield-checkmark',
+    recommendation: 'Annual cardiovascular checkup recommended. Maintain regular aerobic exercise and Mediterranean-style diet.'
+  },
   'Moderate Risk': {
     color: COLORS.riskModerate,
     bg: COLORS.riskModerateBg,
     border: COLORS.riskModerateBorder,
-    badge: 'ELEVATED RISK',
+    badge: 'BORDERLINE / MODERATE RISK',
+    icon: 'warning',
+    recommendation: 'Consult cardiologist for confirmatory stress ECG and lipid profiling. Monitor blood pressure weekly.'
+  },
+  'Moderate': {
+    color: COLORS.riskModerate,
+    bg: COLORS.riskModerateBg,
+    border: COLORS.riskModerateBorder,
+    badge: 'BORDERLINE / MODERATE RISK',
+    icon: 'warning',
+    recommendation: 'Consult cardiologist for confirmatory stress ECG and lipid profiling. Monitor blood pressure weekly.'
+  },
+  'Borderline / Moderate': {
+    color: COLORS.riskModerate,
+    bg: COLORS.riskModerateBg,
+    border: COLORS.riskModerateBorder,
+    badge: 'BORDERLINE / MODERATE RISK',
     icon: 'warning',
     recommendation: 'Consult cardiologist for confirmatory stress ECG and lipid profiling. Monitor blood pressure weekly.'
   },
@@ -59,5 +83,29 @@ export const RISK_LEVELS = {
     badge: 'HIGH CARDIOVASCULAR RISK',
     icon: 'alert-circle',
     recommendation: 'Urgent cardiology evaluation warranted. Consider coronary CT angiography and immediate risk factor intervention.'
+  },
+  'High': {
+    color: COLORS.riskHigh,
+    bg: COLORS.riskHighBg,
+    border: COLORS.riskHighBorder,
+    badge: 'HIGH CARDIOVASCULAR RISK',
+    icon: 'alert-circle',
+    recommendation: 'Urgent cardiology evaluation warranted. Consider coronary CT angiography and immediate risk factor intervention.'
+  },
+  'Critical Risk': {
+    color: COLORS.riskHigh,
+    bg: COLORS.riskHighBg,
+    border: COLORS.riskHighBorder,
+    badge: 'CRITICAL CARDIOVASCULAR RISK',
+    icon: 'alert-circle',
+    recommendation: 'Immediate clinical referral required. Patient presents high ischemic burden and severe multi-vessel indicators.'
+  },
+  'Critical': {
+    color: COLORS.riskHigh,
+    bg: COLORS.riskHighBg,
+    border: COLORS.riskHighBorder,
+    badge: 'CRITICAL CARDIOVASCULAR RISK',
+    icon: 'alert-circle',
+    recommendation: 'Immediate clinical referral required. Patient presents high ischemic burden and severe multi-vessel indicators.'
   }
 };

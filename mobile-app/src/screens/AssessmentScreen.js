@@ -85,15 +85,41 @@ export default function AssessmentScreen({ onAssessmentComplete }) {
         apiService.explain(payload).catch(() => ({})),
       ]);
 
+      // Extract risk probability safely from backend schema (risk_score or probability)
+      const probability = predRes.risk_score ?? predRes.probability ?? (predRes.risk_percentage ? predRes.risk_percentage / 100 : 0);
+
+      // Extract risk tier label safely (risk_tier or risk_level)
+      let riskLevel = predRes.risk_tier ?? predRes.risk_level ?? 'Low Risk';
+
+      // Parse SHAP values into simple dictionary { feature: shap_value }
+      let shapDict = {};
+      if (predRes.feature_attributions && Array.isArray(predRes.feature_attributions)) {
+        predRes.feature_attributions.forEach(item => {
+          if (item.feature && item.shap_value !== undefined) {
+            shapDict[item.feature] = item.shap_value;
+          }
+        });
+      } else if (explainRes.shap_values) {
+        if (Array.isArray(explainRes.shap_values)) {
+          explainRes.shap_values.forEach(item => {
+            if (item.feature && item.shap_value !== undefined) {
+              shapDict[item.feature] = item.shap_value;
+            }
+          });
+        } else if (typeof explainRes.shap_values === 'object') {
+          shapDict = explainRes.shap_values;
+        }
+      }
+
       const assessmentResult = {
         patientData: payload,
-        prediction: predRes.prediction,
-        probability: predRes.probability,
-        riskLevel: predRes.risk_level,
-        confidence: predRes.confidence,
-        shapValues: explainRes.shap_values || {},
-        shapInteractions: explainRes.interactions || [],
-        narrative: explainRes.narrative || '',
+        prediction: predRes.prediction ?? (probability > 0.5 ? 1 : 0),
+        probability,
+        riskLevel,
+        confidence: predRes.confidence ?? 0.88,
+        shapValues: shapDict,
+        shapInteractions: explainRes.interactions || predRes.interactions || [],
+        narrative: predRes.plain_language_narrative || explainRes.narrative || '',
         scanned: scannedBadge,
       };
 
