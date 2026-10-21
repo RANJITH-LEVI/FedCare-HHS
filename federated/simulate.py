@@ -80,21 +80,32 @@ class FederatedSimulationManager:
 
         # Initialize Global RBFN Model
         self.global_model = RBFNClassifier(
-            n_centers=16,
-            learning_rate=0.06,
+            n_centers=24,
+            learning_rate=0.08,
             l2_reg=1e-3,
-            max_iter=300,
+            max_iter=500,
             random_state=42
         )
-        
-        # Initialize centers on global reference background
-        self.global_model._init_centers_and_sigmas(self.global_test_X)
-        n_centers = self.global_model.centers_.shape[0]
-        rng = np.random.RandomState(42)
-        limit = 1.0 / np.sqrt(n_centers)
-        self.global_model.weights_ = rng.uniform(-limit, limit, size=n_centers)
-        self.global_model.bias_ = 0.0
-        self.global_model.is_fitted = True
+
+        # Load saved calibrated model state if available
+        if os.path.exists(self.global_model_path):
+            try:
+                with open(self.global_model_path, 'r', encoding='utf-8') as f:
+                    saved_state = json.load(f)
+                    if 'model_state' in saved_state:
+                        self.global_model.import_state(saved_state['model_state'])
+            except Exception as e:
+                print(f"[WARN] Failed to load saved global_model.json: {e}")
+
+        # If not fitted yet, train on combined global training partitions
+        if not self.global_model.is_fitted:
+            X_train_list = [c['X_train'] for c in self.partitions['clients'].values()]
+            y_train_list = [c['y_train'] for c in self.partitions['clients'].values()]
+            X_train_global = np.vstack(X_train_list)
+            y_train_global = np.concatenate(y_train_list)
+
+            self.global_model.fit(X_train_global, y_train_global, eval_set=(self.global_test_X, self.global_test_y))
+            self._save_state()
 
         # Initialize Centralized Baseline Model for benchmark comparison
         self.centralized_baseline_metrics = self._train_centralized_baseline()

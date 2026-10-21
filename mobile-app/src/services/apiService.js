@@ -94,22 +94,23 @@ class ApiService {
   }
 
   fallbackLocalPredict(p) {
-    let score = 0.20; // baseline
-    if (p.age > 55) score += 0.12;
-    if (p.sex === 1) score += 0.08;
-    if (p.cp === 4) score += 0.22; else if (p.cp === 1) score += 0.15;
-    if (p.trestbps > 140) score += 0.10;
-    if (p.chol > 240) score += 0.08;
-    if (p.thalach < 130) score += 0.12;
-    if (p.exang === 1) score += 0.14;
-    if (p.oldpeak > 1.5) score += 0.16;
-    if (p.ca > 0) score += 0.15;
-    if (p.thal === 6 || p.thal === 7) score += 0.18;
+    let score = 0.05; // healthy baseline
+    if (p.age > 50) score += 0.06;
+    if (p.age > 65) score += 0.10;
+    if (p.sex === 1) score += 0.04;
+    if (p.cp === 4) score += 0.22; else if (p.cp === 1) score += 0.14;
+    if (p.trestbps > 150) score += 0.16; else if (p.trestbps > 135) score += 0.08;
+    if (p.chol > 280) score += 0.14; else if (p.chol > 240) score += 0.07;
+    if (p.thalach < 120) score += 0.14;
+    if (p.exang === 1) score += 0.18;
+    if (p.oldpeak > 1.5) score += 0.18;
+    if (p.ca > 0) score += 0.15 * p.ca;
+    if (p.thal === 6 || p.thal === 7) score += 0.20;
 
     const prob = Math.min(Math.max(score, 0.05), 0.98);
     let risk_level = 'Low Risk';
     if (prob > 0.65) risk_level = 'High Risk';
-    else if (prob > 0.40) risk_level = 'Moderate Risk';
+    else if (prob > 0.35) risk_level = 'Moderate Risk';
 
     return {
       prediction: prob > 0.5 ? 1 : 0,
@@ -121,7 +122,7 @@ class ApiService {
       confidence: 0.88,
       is_offline: true,
       shapValues: {
-        cp: p.cp === 4 ? 0.220 : 0.050,
+        cp: p.cp === 4 ? 0.220 : -0.050,
         oldpeak: p.oldpeak > 1.0 ? p.oldpeak * 0.12 : -0.040,
         ca: p.ca > 0 ? p.ca * 0.11 : -0.050,
         thal: (p.thal === 6 || p.thal === 7) ? 0.180 : -0.080,
