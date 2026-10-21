@@ -336,3 +336,84 @@ class FederatedSimulationManager:
         explanation['interactions'] = interactions['interactions']
         explanation['selected_features'] = self.selected_features
         return explanation
+
+    def add_hospital_dataset(self, site_key: str, name: str, location: str, df: Any, local_epochs: int = 15) -> Dict[str, Any]:
+        """
+        Dynamically registers a new hospital dataset in the federated network,
+        prepares client partition, and triggers an automated federated training round.
+        """
+        import pandas as pd
+        from sklearn.model_selection import train_test_split
+        from model.preprocessing import TARGET_NAME
+
+        clean_site_key = site_key.lower().replace(" ", "_").strip()
+        hosp_id = f"HOSP-{len(HOSPITALS_INFO) + 1:02d}"
+        
+        HOSPITALS_INFO[clean_site_key] = {
+            'id': hosp_id,
+            'name': name,
+            'location': location,
+            'raw_file': f"data/raw/{clean_site_key}.csv",
+            'description': f"Dynamic clinical partner cohort: {name}"
+        }
+
+        # Save to data/raw/{clean_site_key}.csv
+        raw_csv_path = os.path.join(PROJECT_ROOT, "data", "raw", f"{clean_site_key}.csv")
+        os.makedirs(os.path.dirname(raw_csv_path), exist_ok=True)
+        if TARGET_NAME not in df.columns:
+            df[TARGET_NAME] = 0
+        df.to_csv(raw_csv_path, index=False, header=False)
+
+        # Preprocess features & target
+        X = df[FEATURE_NAMES].copy()
+        y = (df[TARGET_NAME] > 0).astype(int).values
+
+        X_trans = self.pipeline.transform(X)
+
+        if len(y) >= 10:
+            stratify = y if len(np.unique(y)) > 1 and min(np.bincount(y)) >= 2 else None
+            X_tr, X_va, y_tr, y_va = train_test_split(X_trans, y, test_size=0.2, random_state=42, stratify=stratify)
+        else:
+            X_tr, X_va, y_tr, y_va = X_trans, X_trans, y, y
+
+        local_model = RBFNClassifier(
+            n_centers=16,
+            learning_rate=0.06,
+            l2_reg=1e-3,
+            max_iter=50,
+            random_state=42
+        )
+        local_model.centers_ = self.global_model.centers_.copy()
+        local_model.sigmas_ = self.global_model.sigmas_.copy()
+        local_model.weights_ = self.global_model.weights_.copy()
+        local_model.bias_ = self.global_model.bias_
+        local_model.is_fitted = True
+
+        client = HospitalNumPyClient(
+            hospital_id=hosp_id,
+            site_key=clean_site_key,
+            model=local_model,
+            X_train=X_tr,
+            y_train=y_tr,
+            X_val=X_va,
+            y_val=y_va,
+            dp_enabled=True,
+            clip_norm=1.0,
+            noise_multiplier=0.05
+        )
+        self.clients[clean_site_key] = client
+
+        # Automatically execute a federated training round
+        round_res = self.trigger_round(local_epochs=local_epochs)
+
+        return {
+            'site_key': clean_site_key,
+            'hospital_id': hosp_id,
+            'hospital_name': name,
+            'location': location,
+            'total_samples': len(df),
+            'training_samples': len(X_tr),
+            'validation_samples': len(X_va),
+            'round_metrics': round_res
+        }
+

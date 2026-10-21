@@ -397,39 +397,65 @@ with tab1:
 
     with col_form:
         st.markdown("##### **1. Clinical Intake Form**")
+
+        with st.expander("📄 Auto-fill from Medical Document (AI Scan)", expanded=False):
+            uploaded_file = st.file_uploader("Upload patient lab report or ECG summary (PDF/Image)", type=["pdf", "png", "jpg", "jpeg"])
+            if uploaded_file is not None:
+                if st.button("Extract Data with AI"):
+                    with st.spinner("Scanning document using Gemini multimodal AI..."):
+                        base_url = st.session_state.get("backend_url", DEFAULT_API_BASE_URL).rstrip("/")
+                        scan_url = f"{base_url}/scan"
+                        files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+                        try:
+                            resp = requests.post(scan_url, files=files, timeout=45)
+                            if resp.status_code == 200:
+                                parsed = resp.json()
+                                st.session_state["scanned_data"] = parsed
+                                st.success("Document scanned successfully! Form updated.")
+                            else:
+                                st.error(f"Scan failed: {resp.text}")
+                        except Exception as e:
+                            st.error(f"Error during scan: {str(e)}")
+
+        form_vals = default_vals.copy()
+        if "scanned_data" in st.session_state:
+            for k, v in st.session_state["scanned_data"].items():
+                if v is not None:
+                    form_vals[k] = v
+
         with st.form(f"patient_intake_form_{pv}"):
             st.markdown("**Demographics & Vitals**")
             c1, c2 = st.columns(2)
             with c1:
-                age_val = st.slider("Age (years)", min_value=25, max_value=85, value=int(default_vals['age']), key=f"age_{pv}")
-                trestbps_val = st.number_input("Resting BP (mm Hg)", min_value=80, max_value=220, value=int(default_vals['trestbps']), key=f"trestbps_{pv}")
+                age_val = st.slider("Age (years)", min_value=25, max_value=85, value=int(form_vals['age']), key=f"age_{pv}")
+                trestbps_val = st.number_input("Resting BP (mm Hg)", min_value=80, max_value=220, value=int(form_vals['trestbps']), key=f"trestbps_{pv}")
             with c2:
-                sex_val = st.selectbox("Biological Sex", options=[1, 0], format_func=lambda x: "Male (1)" if x == 1 else "Female (0)", index=0 if default_vals['sex'] == 1 else 1, key=f"sex_{pv}")
-                chol_val = st.number_input("Serum Cholesterol (mg/dl)", min_value=100, max_value=550, value=int(default_vals['chol']), key=f"chol_{pv}")
+                sex_val = st.selectbox("Biological Sex", options=[1, 0], format_func=lambda x: "Male (1)" if x == 1 else "Female (0)", index=0 if form_vals['sex'] == 1 else 1, key=f"sex_{pv}")
+                chol_val = st.number_input("Serum Cholesterol (mg/dl)", min_value=100, max_value=550, value=int(form_vals['chol']), key=f"chol_{pv}")
 
             st.markdown("**Cardiac Symptoms & History**")
             c3, c4 = st.columns(2)
             with c3:
                 cp_options = {1: "Typical Angina (1)", 2: "Atypical Angina (2)", 3: "Non-Anginal Pain (3)", 4: "Asymptomatic (4)"}
-                cp_val = st.selectbox("Chest Pain Type", options=list(cp_options.keys()), format_func=lambda x: cp_options[x], index=list(cp_options.keys()).index(int(default_vals['cp'])), key=f"cp_{pv}")
-                fbs_val = st.selectbox("Fasting Blood Sugar > 120 mg/dl", options=[0, 1], format_func=lambda x: "False (<= 120)" if x == 0 else "True (> 120)", index=int(default_vals['fbs']), key=f"fbs_{pv}")
+                cp_val = st.selectbox("Chest Pain Type", options=list(cp_options.keys()), format_func=lambda x: cp_options[x], index=list(cp_options.keys()).index(int(form_vals['cp'])), key=f"cp_{pv}")
+                fbs_val = st.selectbox("Fasting Blood Sugar > 120 mg/dl", options=[0, 1], format_func=lambda x: "False (<= 120)" if x == 0 else "True (> 120)", index=int(form_vals['fbs']), key=f"fbs_{pv}")
             with c4:
                 restecg_options = {0: "Normal (0)", 1: "ST-T Abnormality (1)", 2: "LV Hypertrophy (2)"}
-                restecg_val = st.selectbox("Resting ECG", options=list(restecg_options.keys()), format_func=lambda x: restecg_options[x], index=list(restecg_options.keys()).index(int(default_vals['restecg'])), key=f"restecg_{pv}")
-                exang_val = st.selectbox("Exercise-Induced Angina", options=[0, 1], format_func=lambda x: "No (0)" if x == 0 else "Yes (1)", index=int(default_vals['exang']), key=f"exang_{pv}")
+                restecg_val = st.selectbox("Resting ECG", options=list(restecg_options.keys()), format_func=lambda x: restecg_options[x], index=list(restecg_options.keys()).index(int(form_vals['restecg'])), key=f"restecg_{pv}")
+                exang_val = st.selectbox("Exercise-Induced Angina", options=[0, 1], format_func=lambda x: "No (0)" if x == 0 else "Yes (1)", index=int(form_vals['exang']), key=f"exang_{pv}")
 
             st.markdown("**Exercise Stress Test & Advanced Diagnostics**")
             c5, c6 = st.columns(2)
             with c5:
-                thalach_val = st.slider("Max Heart Rate (thalach, bpm)", min_value=70, max_value=210, value=int(default_vals['thalach']), key=f"thalach_{pv}")
-                oldpeak_val = st.slider("ST Depression (oldpeak, mm)", min_value=0.0, max_value=6.0, value=float(default_vals['oldpeak']), step=0.1, key=f"oldpeak_{pv}")
+                thalach_val = st.slider("Max Heart Rate (thalach, bpm)", min_value=70, max_value=210, value=int(form_vals['thalach']), key=f"thalach_{pv}")
+                oldpeak_val = st.slider("ST Depression (oldpeak, mm)", min_value=0.0, max_value=6.0, value=float(form_vals['oldpeak']), step=0.1, key=f"oldpeak_{pv}")
             with c6:
                 slope_options = {1: "Upsloping (1)", 2: "Flat (2)", 3: "Downsloping (3)"}
-                slope_val = st.selectbox("Slope of Peak Exercise ST", options=list(slope_options.keys()), format_func=lambda x: slope_options[x], index=list(slope_options.keys()).index(int(default_vals['slope'])), key=f"slope_{pv}")
-                ca_val = st.selectbox("Major Vessels Colored (ca)", options=[0.0, 1.0, 2.0, 3.0], index=int(default_vals['ca']), key=f"ca_{pv}")
+                slope_val = st.selectbox("Slope of Peak Exercise ST", options=list(slope_options.keys()), format_func=lambda x: slope_options[x], index=list(slope_options.keys()).index(int(form_vals['slope'])), key=f"slope_{pv}")
+                ca_val = st.selectbox("Major Vessels Colored (ca)", options=[0.0, 1.0, 2.0, 3.0], index=int(form_vals['ca']), key=f"ca_{pv}")
 
             thal_options = {3: "Normal (3)", 6: "Fixed Defect (6)", 7: "Reversible Defect (7)"}
-            thal_val = st.selectbox("Thalassemia (thal)", options=list(thal_options.keys()), format_func=lambda x: thal_options[x], index=list(thal_options.keys()).index(int(default_vals['thal'])), key=f"thal_{pv}")
+            thal_val = st.selectbox("Thalassemia (thal)", options=list(thal_options.keys()), format_func=lambda x: thal_options[x], index=list(thal_options.keys()).index(int(form_vals['thal'])), key=f"thal_{pv}")
 
             submit_pred_btn = st.form_submit_button("⚡ Evaluate Cardiovascular Risk & Explain", use_container_width=True)
 

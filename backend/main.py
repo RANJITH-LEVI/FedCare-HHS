@@ -28,6 +28,7 @@ from backend.routes.predict import router as predict_router
 from backend.routes.ingest import router as ingest_router
 from backend.routes.federated import router as federated_router
 from backend.routes.hospitals import router as hospitals_router
+from backend.routes.scan import router as scan_router
 from model.preprocessing import HOSPITALS_INFO
 from federated.simulate import FederatedSimulationManager
 
@@ -107,6 +108,7 @@ app.include_router(predict_router)
 app.include_router(ingest_router)
 app.include_router(federated_router)
 app.include_router(hospitals_router)
+app.include_router(scan_router)
 
 
 @app.get("/", tags=["System Health"])
