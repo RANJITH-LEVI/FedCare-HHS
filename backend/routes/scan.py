@@ -1,8 +1,14 @@
 import os
 import json
 from fastapi import APIRouter, File, UploadFile, HTTPException
-import google.generativeai as genai
 from backend.schemas.patient import ClinicalInput
+
+try:
+    import google.generativeai as genai
+    HAS_GENAI = True
+except ImportError:
+    genai = None
+    HAS_GENAI = False
 
 router = APIRouter(tags=["Document Scanning"])
 
@@ -12,6 +18,9 @@ async def scan_medical_document(file: UploadFile = File(...)):
     Scans a medical document (PDF or image) and extracts the 13 clinical features.
     Requires GEMINI_API_KEY environment variable to be set.
     """
+    if not HAS_GENAI:
+        raise HTTPException(status_code=500, detail="google-generativeai package is not installed on server.")
+
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not configured on the server.")
