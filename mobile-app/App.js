@@ -14,7 +14,6 @@ import { COLORS } from './src/constants/theme';
 import apiService from './src/services/apiService';
 import Header from './src/components/Header';
 import SettingsModal from './src/components/SettingsModal';
-import InstallModal from './src/components/InstallModal';
 import AssessmentScreen from './src/screens/AssessmentScreen';
 import ResultsScreen from './src/screens/ResultsScreen';
 import DatasetsScreen from './src/screens/DatasetsScreen';
@@ -25,8 +24,6 @@ export default function App() {
   const [currentResult, setCurrentResult] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
-  const [installModalVisible, setInstallModalVisible] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   const checkConnection = async () => {
     try {
@@ -39,30 +36,9 @@ export default function App() {
 
   useEffect(() => {
     checkConnection();
-    const interval = setInterval(checkConnection, 12000);
+    const interval = setInterval(checkConnection, 10000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const handler = (e) => {
-        e.preventDefault();
-        setDeferredPrompt(e);
-      };
-      window.addEventListener('beforeinstallprompt', handler);
-      return () => window.removeEventListener('beforeinstallprompt', handler);
-    }
-  }, []);
-
-  const handleInstallPWA = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice.outcome === 'accepted') {
-        setDeferredPrompt(null);
-      }
-    }
-  };
 
   const handleAssessmentComplete = (result) => {
     setCurrentResult(result);
@@ -78,28 +54,11 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <ExpoStatusBar style="light" backgroundColor={COLORS.surface} />
       <View style={styles.container}>
-        {/* App Header with Server Connection Status */}
+        {/* App Header with Auto Connection Status */}
         <Header
           isConnected={isConnected}
           onOpenSettings={() => setSettingsVisible(true)}
         />
-
-        {/* Quick Standalone Install Bar */}
-        <TouchableOpacity
-          style={styles.installBanner}
-          onPress={() => setInstallModalVisible(true)}
-          activeOpacity={0.85}
-        >
-          <View style={styles.installBannerLeft}>
-            <Ionicons name="phone-portrait" size={16} color={COLORS.riskLow} />
-            <Text style={styles.installBannerText}>
-              Install Standalone App on Phone <Text style={{ color: COLORS.textMuted }}>(No Expo Go needed)</Text>
-            </Text>
-          </View>
-          <View style={styles.installBadge}>
-            <Text style={styles.installBadgeText}>Install</Text>
-          </View>
-        </TouchableOpacity>
 
         {/* Tab Content */}
         <View style={styles.content}>
@@ -210,14 +169,6 @@ export default function App() {
           onClose={() => setSettingsVisible(false)}
           onServerChanged={(connected) => setIsConnected(connected)}
         />
-
-        {/* Install as Standalone App Modal */}
-        <InstallModal
-          visible={installModalVisible}
-          onClose={() => setInstallModalVisible(false)}
-          onInstallPWA={handleInstallPWA}
-          canInstallPWA={!!deferredPrompt}
-        />
       </View>
     </SafeAreaView>
   );
@@ -232,38 +183,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-  },
-  installBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(16, 185, 129, 0.25)',
-  },
-  installBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  installBannerText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.riskLow,
-  },
-  installBadge: {
-    backgroundColor: COLORS.riskLow,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  installBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.white,
   },
   content: {
     flex: 1,

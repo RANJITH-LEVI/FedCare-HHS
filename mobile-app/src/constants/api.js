@@ -3,20 +3,15 @@ import { Platform } from 'react-native';
 
 const STORAGE_KEY = '@fedcare_api_url';
 
-// Auto-detect best default URL:
-// - Physical phone on Wi-Fi: host IP 10.185.148.248:8000
-// - Android Emulator: 10.0.2.2:8000
-// - Web / iOS Sim: localhost:8000
+// Fixed Production Cloud Backend URL (Render.com live server)
+export const DEFAULT_ONLINE_URL = 'https://fedcare-backend.onrender.com';
 export const DEFAULT_HOST_IP = '10.185.148.248';
 
 export const getDefaultApiUrl = () => {
-  if (Platform.OS === 'web') {
-    return 'http://localhost:8000';
-  }
-  return `http://${DEFAULT_HOST_IP}:8000`;
+  return DEFAULT_ONLINE_URL;
 };
 
-let cachedApiUrl = getDefaultApiUrl();
+let cachedApiUrl = DEFAULT_ONLINE_URL;
 
 export const getApiUrl = async () => {
   try {
